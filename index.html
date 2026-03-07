@@ -413,7 +413,7 @@
 
             document.getElementById('feelsLike').textContent = `${Math.round(data.main.feels_like)}°`;
             document.getElementById('humidity').textContent = `${data.main.humidity}%`;
-            document.getElementById('wind').textContent = `${Math.round(data.main.wind.speed * 3.6)} km/h`;
+            document.getElementById('wind').textContent = `${Math.round((data.wind?.speed || 0) * 3.6)} km/h`;
             document.getElementById('pressure').textContent = `${data.main.pressure} hPa`;
         }
 
