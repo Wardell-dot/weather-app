@@ -41,7 +41,7 @@
         /* Search */
         .search-box {
             position: relative;
-            margin-bottom: 24px;
+            margin-bottom: 12px;
         }
 
         .search-input {
@@ -77,6 +77,27 @@
 
         .search-btn:hover {
             opacity: 0.9;
+        }
+
+        /* Location & Theme buttons */
+        .location-btn,
+        .theme-btn {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .location-btn:hover,
+        .theme-btn:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
         }
 
         /* Loading */
@@ -259,6 +280,16 @@
         .error.active {
             display: block;
         }
+
+        /* Light theme */
+        body.light {
+            --bg-primary: #f0f4f8;
+            --bg-secondary: #ffffff;
+            --bg-glass: rgba(0, 0, 0, 0.03);
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --border: rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 
@@ -269,6 +300,12 @@
             <input type="text" class="search-input" id="cityInput" placeholder="Search city..." value="London">
             <button class="search-btn" onclick="searchWeather()">Search</button>
         </div>
+
+        <!-- Location Button -->
+        <button class="location-btn" onclick="getLocation()">📍 Use My Location</button>
+
+        <!-- Theme Toggle -->
+        <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
 
         <!-- Loading -->
         <div class="loading" id="loading">
@@ -321,9 +358,7 @@
     </div>
 
     <script>
-        // REPLACE THIS WITH YOUR ACTUAL API KEY
         const API_KEY = '3cc19c759dc924e374d6ff44051629ec';
-
         const API_URL = 'https://api.openweathermap.org/data/2.5';
 
         // Weather icon mapping
@@ -368,38 +403,72 @@
             document.getElementById('error').classList.remove('active');
         }
 
-        // Fetch weather data
+        // Fetch weather data by city
         async function searchWeather() {
             const city = document.getElementById('cityInput').value.trim();
-
             if (!city) return;
-
             showLoading();
-
             try {
-                // Current weather
                 const currentResponse = await fetch(
                     `${API_URL}/weather?q=${city}&appid=${API_KEY}&units=metric`
                 );
-
                 if (!currentResponse.ok) throw new Error('City not found');
-
                 const currentData = await currentResponse.json();
 
-                // Forecast
                 const forecastResponse = await fetch(
                     `${API_URL}/forecast?q=${city}&appid=${API_KEY}&units=metric`
                 );
-
                 const forecastData = await forecastResponse.json();
 
-                // Update UI
                 updateCurrentWeather(currentData);
                 updateForecast(forecastData);
                 showWeather();
-
             } catch (error) {
                 showError(error.message || 'Failed to fetch weather data');
+            }
+        }
+
+        // Fetch weather by coordinates
+        async function getLocation() {
+            if (!navigator.geolocation) {
+                showError('Geolocation is not supported by your browser');
+                return;
+            }
+            showLoading();
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const currentResponse = await fetch(
+                        `${API_URL}/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
+                    );
+                    if (!currentResponse.ok) throw new Error('Location not found');
+                    const currentData = await currentResponse.json();
+
+                    const forecastResponse = await fetch(
+                        `${API_URL}/forecast?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric`
+                    );
+                    const forecastData = await forecastResponse.json();
+
+                    document.getElementById('cityInput').value = currentData.name;
+                    updateCurrentWeather(currentData);
+                    updateForecast(forecastData);
+                    showWeather();
+                } catch (error) {
+                    showError(error.message || 'Failed to fetch location weather');
+                }
+            }, () => {
+                showError('Unable to get your location. Please allow location access.');
+            });
+        }
+
+        // Toggle light/dark theme
+        function toggleTheme() {
+            document.body.classList.toggle('light');
+            const btn = document.getElementById('themeBtn');
+            if (document.body.classList.contains('light')) {
+                btn.textContent = '🌙 Dark Mode';
+            } else {
+                btn.textContent = '☀️ Light Mode';
             }
         }
 
@@ -410,7 +479,6 @@
             document.getElementById('temperature').textContent = Math.round(data.main.temp);
             document.getElementById('condition').textContent = data.weather[0].description;
             document.getElementById('weatherIcon').src = getIconUrl(data.weather[0].icon);
-
             document.getElementById('feelsLike').textContent = `${Math.round(data.main.feels_like)}°`;
             document.getElementById('humidity').textContent = `${data.main.humidity}%`;
             document.getElementById('wind').textContent = `${Math.round((data.wind?.speed || 0) * 3.6)} km/h`;
@@ -421,10 +489,7 @@
         function updateForecast(data) {
             const forecastList = document.getElementById('forecastList');
             forecastList.innerHTML = '';
-
-            // Get one forecast per day (noon time)
             const dailyData = data.list.filter(item => item.dt_txt.includes('12:00:00')).slice(0, 5);
-
             dailyData.forEach(day => {
                 const item = document.createElement('div');
                 item.className = 'forecast-item';
